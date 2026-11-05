@@ -1,0 +1,18 @@
+# Railway deployment settings.
+#
+# The service is deployed with `railway up` from this directory rather than from
+# a connected repo, so this file is what carries the build and health-check
+# contract. Anything here that also exists as a dashboard setting is duplicated
+# on purpose: the dashboard is the thing that gets forgotten.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# `/health_check` is the liveness route (not `/health`). Railway restarts the
+# service if this stops answering.
+healthcheckPath = "/health_check"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

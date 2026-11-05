@@ -48,4 +48,8 @@ COPY configuration configuration
 COPY static static
 COPY templates templates
 ENV APP_ENVIRONMENT=production
+# The port the app binds. Stated here so it is discoverable: the app reads it
+# from configuration/base.toml rather than from a `PORT` variable, so a platform
+# that injects one will not be honoured. Railway's target port must match.
+EXPOSE 8000
 ENTRYPOINT ["./musicfeed"]
