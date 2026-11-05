@@ -421,7 +421,7 @@ async fn empty_state_is_shown_only_when_there_are_no_entries() {
 
     // Assert — visible, because nothing is spinning yet
     assert!(
-        empty.contains(r#"<li id="rotation-empty" class="rotation-empty" >"#),
+        empty.contains(r#"<li id="rotation-loading" class="rotation-empty" >"#),
         "empty state should render when the list is empty: {empty}"
     );
 
@@ -444,7 +444,7 @@ async fn empty_state_is_shown_only_when_there_are_no_entries() {
 
     // Assert — hidden, because there is now something to show
     assert!(
-        filled.contains(r#"<li id="rotation-empty" class="rotation-empty" hidden>"#),
+        filled.contains(r#"<li id="rotation-loading" class="rotation-empty" hidden>"#),
         "empty state should be hidden once entries exist: {filled}"
     );
 }
@@ -469,7 +469,7 @@ async fn sse_removes_the_empty_state_message() {
     // alone leaves it sitting below the new entry. The stream must carry an explicit
     // removal, or "Nothing spinning yet" survives until a full page reload.
     assert!(
-        body.contains("data: selector #rotation-empty"),
+        body.contains("data: selector #rotation-loading"),
         "stream did not target the empty state:\n{body}"
     );
     assert!(
@@ -478,7 +478,7 @@ async fn sse_removes_the_empty_state_message() {
     );
     // And the removal must come after the append, or the message is gone before it matters.
     let append_at = body.find("data: selector #rotation-list").unwrap();
-    let remove_at = body.find("data: selector #rotation-empty").unwrap();
+    let remove_at = body.find("data: selector #rotation-loading").unwrap();
     assert!(
         append_at < remove_at,
         "removal should follow the append:\n{body}"
@@ -667,6 +667,48 @@ async fn random_entry_is_one_of_the_entered_entries() {
     assert!(
         body.contains("rotation-artist"),
         "expected a rendered entry, got: {body}"
+    );
+}
+
+#[tokio::test]
+async fn random_entry_also_clears_the_consumer_placeholder() {
+    // The blog renders "Loading current rotation…" with id `rotation-loading`
+    // inside `#rotation-list` and relies on this stream to take it away. Without
+    // the removal the notice sits underneath the widget forever, which is exactly
+    // the bug this contract exists to prevent.
+    let app = spawn_app().await;
+    app.api_client
+        .post(format!("{}/rotation", app.address))
+        .json(&payload())
+        .send()
+        .await
+        .unwrap();
+
+    let body = app
+        .unauthenticated_client
+        .get(format!("{}/rotation", app.address))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+
+    assert!(
+        body.contains("data: selector #rotation-loading"),
+        "stream did not clear the consumer placeholder:\n{body}"
+    );
+    assert!(
+        body.contains("data: mode remove"),
+        "placeholder removal is missing its mode:\n{body}"
+    );
+    // The removal must follow the append, or the placeholder vanishes before the
+    // entry it is making room for has arrived.
+    let append_at = body.find("data: selector #rotation-list").unwrap();
+    let remove_at = body.find("data: selector #rotation-loading").unwrap();
+    assert!(
+        append_at < remove_at,
+        "removal should follow the append:\n{body}"
     );
 }
 

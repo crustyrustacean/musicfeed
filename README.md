@@ -37,6 +37,28 @@ nothing for anyone else to install or run.
 
 `GET /rotation` answers `404` when the rotation is empty.
 
+### The stream contract
+
+Both `GET /rotation` and `POST /rotation` answer with server-sent events carrying Datastar
+`datastar-patch-elements` messages, in this order:
+
+1. **append** a rendered entry to `#rotation-list`
+2. **remove** `#rotation-loading`
+
+The second message is what lets a consumer show a placeholder — a loading notice, an empty-state
+message — inside the list without it surviving underneath the widget. Put your placeholder in the
+list with `id="rotation-loading"` and the stream will clear it once there is an entry to show.
+If you have no such element, nothing happens: removing a missing node is a no-op.
+
+```html
+<section id="rotation-list" data-init="@get('https://musicfeed.crusty-metallian.net/rotation')">
+  <p id="rotation-loading">Loading current rotation…</p>
+</section>
+```
+
+The entries themselves are appended, never replaced, so a consumer that wants exactly one visible
+entry should keep the last appended `.rotation-widget` and drop any earlier ones.
+
 ## Built with
 
 - Rust and [Axum](https://github.com/tokio-rs/axum)

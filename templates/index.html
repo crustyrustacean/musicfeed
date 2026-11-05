@@ -44,10 +44,12 @@
         {% for rotation_entry in rotation_entries %}{% include "rotation.html" %}{% endfor %}
         <!--
         The empty-state message lives INSIDE the list so that the append patch targets
-        the same element every time. When the first entry arrives the handler also
-        removes this node, so it cannot survive as stale text below the list.
+        the same element every time. Its id is part of the stream contract: the handler
+        removes `#rotation-loading` whenever it appends an entry, so this node cannot
+        survive as stale text below the list. The blog's loading notice uses the same
+        id, which is why the removal is addressed by id rather than by class.
         -->
-        <li id="rotation-empty" class="rotation-empty" {% if rotation_entries | length > 0 %}hidden{% endif %}>
+        <li id="rotation-loading" class="rotation-empty" {% if rotation_entries | length > 0 %}hidden{% endif %}>
           Nothing spinning yet. Add the first entry above.
         </li>
       </ul>

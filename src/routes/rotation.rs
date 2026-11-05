@@ -46,6 +46,10 @@ impl IntoResponse for RotationEntryError {
     }
 }
 
+/// The element a consumer puts inside `#rotation-list` as a placeholder, removed
+/// once a real entry is appended. Part of the SSE contract described in README.
+const PLACEHOLDER_ID: &str = "#rotation-loading";
+
 /// What the form sends. `cover` and `year` are absent by design — they are looked
 /// up, not typed. `id` and `listened_date` are absent because the app controls
 /// them, so a client cannot forge either.
@@ -112,11 +116,11 @@ pub async fn post_rotation_entry_ds(
         .mode(ElementPatchMode::Append)
         .write_as_axum_sse_event();
 
-    // The empty-state message is rendered inside `#rotation-list`, so the append
-    // above would otherwise leave it sitting below the new entry. Remove it now
-    // that there is something to show. Removing an element that is already gone
-    // is a no-op, so this is safe on every subsequent post as well as the first.
-    let clear_empty = PatchElements::new_remove("#rotation-empty").write_as_axum_sse_event();
+    // The empty state is rendered inside `#rotation-list`, so the append above
+    // would otherwise leave it sitting below the new entry. Remove it now that
+    // there is something to show. Removing an element that is already gone is a
+    // no-op, so this is safe on every subsequent post as well as the first.
+    let clear_empty = PatchElements::new_remove(PLACEHOLDER_ID).write_as_axum_sse_event();
 
     // Reset the bound signals so the form is ready for the next entry.
     //
@@ -165,7 +169,18 @@ pub async fn get_rotation_entry(
         .mode(ElementPatchMode::Append)
         .write_as_axum_sse_event();
 
-    let sse_event = Sse::new(tokio_stream::iter(vec![Ok(patch)]));
+    // Drop the consumer's placeholder. Any page that renders an entry into
+    // `#rotation-list` before the stream arrives — our own form page shows the
+    // empty state, the blog shows a loading notice — must have it removed once
+    // there is something real to show, or it survives underneath the widget.
+    //
+    // This is a documented part of the contract rather than something each
+    // consumer is expected to work around: the id is fixed, and a consumer that
+    // has no such element is unaffected because removing a missing node is a
+    // no-op.
+    let clear_placeholder = PatchElements::new_remove(PLACEHOLDER_ID).write_as_axum_sse_event();
+
+    let sse_event = Sse::new(tokio_stream::iter(vec![Ok(patch), Ok(clear_placeholder)]));
 
     Ok(sse_event)
 }
