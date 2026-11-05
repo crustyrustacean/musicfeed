@@ -305,11 +305,11 @@ Initial scaffold, renamed from the `axum-tera-datastar` starter.
   tracing, and graceful shutdown.
 - `GET /health_check` and a starter to-do demo.
 
-[Unreleased]: https://github.com/crustyrustacean/ZTM-Build-Fest/compare/v0.6.1...HEAD
-[0.6.1]: https://github.com/crustyrustacean/ZTM-Build-Fest/compare/v0.6.0...v0.6.1
-[0.6.0]: https://github.com/crustyrustacean/ZTM-Build-Fest/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/crustyrustacean/ZTM-Build-Fest/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/crustyrustacean/ZTM-Build-Fest/compare/v0.3.1...v0.4.0
-[0.3.1]: https://github.com/crustyrustacean/ZTM-Build-Fest/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/crustyrustacean/ZTM-Build-Fest/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/crustyrustacean/ZTM-Build-Fest/releases/tag/musicfeed-v0.2.0
+[Unreleased]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/crustyrustacean/musicfeed/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/crustyrustacean/musicfeed/releases/tag/v0.2.0

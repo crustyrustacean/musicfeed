@@ -23,7 +23,15 @@ const COVER_ART_BASE_URL: &str = "https://coverartarchive.org";
 /// MusicBrainz requires a User-Agent identifying the application, and returns
 /// **HTTP 403** without one. Their spec asks for `app/version ( contact )`, so
 /// the contact is part of the constant rather than an afterthought.
-const USER_AGENT: &str = "musicfeed/0.2.0 ( https://github.com/crustyrustacean/ZTM-Build-Fest )";
+///
+/// The version comes from `Cargo.toml` rather than being typed here: this is the
+/// one string a third party reads to identify the caller, so a copy that drifts
+/// from the manifest misreports the project to MusicBrainz.
+const USER_AGENT: &str = concat!(
+    "musicfeed/",
+    env!("CARGO_PKG_VERSION"),
+    " ( https://github.com/crustyrustacean/musicfeed )"
+);
 
 /// MusicBrainz allows roughly one request per second. Being a well-behaved
 /// caller is a requirement, not a nicety: exceeding it earns a 503.
@@ -718,5 +726,16 @@ mod tests {
         assert_eq!(NOT_FOUND.cover, None);
         assert_eq!(NOT_FOUND.year, None);
         assert_ne!(NOT_FOUND.year, Some(0));
+    }
+
+    /// The User-Agent is what MusicBrainz uses to identify the caller, so it has
+    /// to name the real version. Pinning the manifest version here is what stops
+    /// it drifting the way a hand-typed string did (it read 0.2.0 at 0.6.1).
+    #[test]
+    fn user_agent_reports_the_manifest_version() {
+        assert!(USER_AGENT.starts_with(&format!("musicfeed/{}", env!("CARGO_PKG_VERSION"))));
+        // MusicBrainz wants a contact; a bare app/version is not enough.
+        assert!(USER_AGENT.contains("https://github.com/crustyrustacean/musicfeed"));
+        assert!(!USER_AGENT.contains("ZTM-Build-Fest"));
     }
 }

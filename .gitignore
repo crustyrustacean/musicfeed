@@ -14,5 +14,11 @@ AGENTS.md
 # Build artifacts
 /target
 
+# SQLite database: created on first run, and it holds real entries. The
+# production one lives on the Railway volume; local runs write this path.
+*.db
+*.db-shm
+*.db-wal
+
 # Local planning documents
 .plans/

@@ -1,28 +1,92 @@
-# ZTM Build Fest 2026
-## MusicFeed — Publish your favourites
+# MusicFeed
 
-MusicFeed is a personal music log that sends what I'm listening to to my blog, [Crusty Metallian](https://crusty-metallian.net). I can record an album once, and it appears in the music widget on the blog's front page—no manual site edits needed. The goal is to help visitors discover music they might not otherwise encounter.
+A small service that keeps a "currently spinning" widget on my music blog up to date.
 
-### Try it
+Record an album once — artist, title, an optional note — and it appears in the widget on
+[Crusty Metallian](https://crusty-metallian.net)'s front page. Cover art and release year are
+looked up automatically, and a background pass retries any lookup that failed. The point is to
+tell visitors about music they might not otherwise hear about, without me editing the site by hand.
 
-- **Listen:** Visit [Crusty Metallian](https://crusty-metallian.net) to see the MusicFeed widget on the front page.
-- **MusicFeed service:** [musicfeed.crusty-metallian.net](https://musicfeed.crusty-metallian.net) (hosted on Railway).
+## Try it
 
-The service provides the form for adding entries and the API used by the blog widget. Form submissions are protected by HTTP Basic Authentication; I'm currently the only user authorized to add entries. Visitors can see the music on the blog; they don't need to download or run MusicFeed.
+- **See it:** [Crusty Metallian](https://crusty-metallian.net) — the widget is on the front page.
+- **The service:** [musicfeed.crusty-metallian.net](https://musicfeed.crusty-metallian.net)
 
-### How it works
+The service is the form for adding entries and the API the blog widget reads. Writing is protected
+by HTTP Basic Authentication and I'm the only authorized user, so visitors only ever read. There is
+nothing for anyone else to install or run.
 
-I add an artist, album, and optional note through MusicFeed. The service looks up release-year and cover-art metadata when available, saves the entry, and makes it available to the blog widget. A lookup miss doesn't prevent an entry from being saved; a background task can retry missing metadata later.
+## How it works
 
-### Built with
+1. Submit artist, album, and an optional note through the form.
+2. The service asks [MusicBrainz](https://musicbrainz.org/) for the release year and the
+   [Cover Art Archive](https://coverartarchive.org/) for the artwork.
+3. The entry is saved to SQLite — whether or not the lookup succeeded. A miss never costs you the
+   entry; it just arrives without a cover, and a healer pass retries later.
+4. The blog fetches `GET /rotation` and streams the current pick into the widget with
+   [Datastar](https://data-star.dev/).
 
-- Rust and [Axum](https://github.com/tokio-rs/axum) for the web service
-- [Tera](https://github.com/Keats/tera) templates and [Datastar](https://data-star.dev/) for the interactive form and live updates
-- SQLite for persistent storage
+## Endpoints
+
+| Method | Path            | Notes                                                        |
+| ------ | --------------- | ------------------------------------------------------------ |
+| `GET`  | `/`             | The entry form and the full rotation list                     |
+| `GET`  | `/rotation`     | Server-sent events: one randomly chosen entry as a Datastar patch |
+| `POST` | `/rotation`     | Add an entry (Basic auth). Streams the patch back             |
+| `GET`  | `/health_check` | Liveness                                                       |
+
+`GET /rotation` answers `404` when the rotation is empty.
+
+## Built with
+
+- Rust and [Axum](https://github.com/tokio-rs/axum)
+- [Tera](https://github.com/Keats/tera) templates and [Datastar](https://data-star.dev/) for the
+  interactive form and the live patch
+- SQLite via [sqlx](https://github.com/launchbadge/sqlx), migrations embedded in the binary
 - MusicBrainz and the Cover Art Archive for album metadata
 
-The project builds on my [Axum-Tera-Datastar starter](https://github.com/crustyrustacean/axum-tera-datastar).
+This grew out of my [Axum-Tera-Datastar starter](https://github.com/crustyrustacean/axum-tera-datastar).
 
-### About the project
+## Running it
 
-This is my [ZTM Build Fest 2026](https://github.com/zero-to-mastery/ZTM-Build-Fest) project. I use AI to help brainstorm and guide development, and my own harness, [Rho Code](https://rho-code.dev), as a research assistant, pair programmer, and reviewer.
+Configuration is layered: `configuration/base.toml`, then an environment file, then `APP_*`
+environment variables.
+
+```bash
+cargo run                # http://127.0.0.1:8000, using configuration/local.toml
+cargo test               # 66 tests, no network required
+```
+
+The default local credentials are `test` / `test`. Set real ones for anything reachable:
+
+```bash
+export APP_BASICAUTH__USERNAME=...
+export APP_BASICAUTH__PASSWORD=...
+```
+
+Container build and deploy:
+
+```bash
+docker build -t musicfeed .
+docker run -p 8000:8000 -e APP_ENVIRONMENT=production musicfeed
+```
+
+`APP_ENVIRONMENT=production` reads `configuration/production.toml` and expects the SQLite volume at
+`/data`. Migrations are embedded with `sqlx::migrate!`, so changing a migration needs a rebuild
+rather than a new file in a running image.
+
+Because browsers are the only clients CORS can restrain, `[cors] allowed_origins` lists the blog's
+origins — see `configuration/base.toml`. That is a convenience for the widget, not authentication:
+`POST /rotation` is protected by Basic auth, which is what actually keeps it closed.
+
+## History
+
+Originally built for [ZTM Build Fest 2026](https://github.com/zero-to-mastery/ZTM-Build-Fest); the
+submission lives there and this repository is where it continues.
+
+I use AI to help brainstorm and guide development, and my own harness,
+[Rho Code](https://rho-code.dev), as a research assistant, pair programmer, and reviewer.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
