@@ -83,7 +83,11 @@ pub fn build_router(state: AppState) -> Router {
 
     Router::new()
         .route("/", get(get_index_page))
+        // `/health_check` is the original route and is what railway.toml points
+        // at; `/health` is the conventional spelling, kept as an alias so either
+        // works for uptime monitors. Same handler, so the two cannot drift.
         .route("/health_check", get(health_check))
+        .route("/health", get(health_check))
         .route("/rotation", get(get_rotation_entry))
         .route(
             "/rotation",

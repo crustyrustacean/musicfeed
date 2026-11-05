@@ -55,11 +55,28 @@ pub async fn basic_auth(
         return unauthorized();
     };
 
-    if *username == state.basicauth.username.as_str()
-        && *password == state.basicauth.password.as_str()
-    {
+    // Constant-time on both fields. `==` on a `&str` short-circuits at the first
+    // differing byte, which leaks a prefix match through response timing. Both
+    // comparisons always run so the pair does not leak which of the two was
+    // wrong either.
+    //
+    // This is defence in depth, not the primary control: the real boundary is
+    // that only one account exists and the service is HTTPS-only. It costs two
+    // lines, so there is no reason to leave the timing channel open.
+    let username_ok = ct_eq(username.as_bytes(), state.basicauth.username.as_bytes());
+    let password_ok = ct_eq(password.as_bytes(), state.basicauth.password.as_bytes());
+
+    if (username_ok & password_ok).into() {
         next.run(request).await
     } else {
         unauthorized()
     }
+}
+
+fn ct_eq(a: &[u8], b: &[u8]) -> subtle::Choice {
+    use subtle::ConstantTimeEq;
+    if a.len() != b.len() {
+        return subtle::Choice::from(0);
+    }
+    a.ct_eq(b)
 }

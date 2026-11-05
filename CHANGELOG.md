@@ -5,6 +5,36 @@ All notable changes to MusicFeed are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-11-05
+
+Consumers can now put their loading notice where the stream will clear it, and
+the service stops depending on undocumented dashboard state.
+
+### Added
+
+- `GET /rotation` sends a second patch removing `#rotation-loading`, after the
+  append. That id is the stream contract: a consumer puts its placeholder there
+  and the stream clears it. Consumers without one are unaffected — removing a
+  missing node is a no-op — and the empty-state case still sends only the
+  `#rotation-empty` removal, because there is no widget yet to anchor to.
+- `/health` as an alias for `/health_check`, for uptime monitors that use the
+  conventional spelling.
+- `railway.toml` records the build and health-check contract, and the
+  `Dockerfile` now has `EXPOSE 8000`.
+
+### Changed
+
+- Basic auth compares the username and password in constant time, so a prefix
+  match no longer shows up in response timing. Defence in depth: the real
+  boundary remains a single account behind TLS.
+- The MusicBrainz `User-Agent` is built from `CARGO_PKG_VERSION` instead of a
+  hardcoded string that had drifted to 0.2.0, and points at this repository.
+
+### Notes
+
+- Deploying is still `railway up`. `railway.toml` is read by that path; it does
+  not assume a connected repo.
+
 ## [Unreleased]
 
 ## [0.6.1] - 2026-10-14
@@ -305,7 +335,8 @@ Initial scaffold, renamed from the `axum-tera-datastar` starter.
   tracing, and graceful shutdown.
 - `GET /health_check` and a starter to-do demo.
 
-[Unreleased]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/crustyrustacean/musicfeed/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.4.0...v0.5.0
