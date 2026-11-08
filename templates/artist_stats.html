@@ -1,0 +1,14 @@
+<div class="artist-stats-widget">
+  {% if artist_stats %}
+  <ol class="artist-stats-list">
+    {% for stat in artist_stats %}
+    <li class="artist-stats-row">
+      <span class="artist-stats-artist">{{ stat.artist }}</span>
+      <span class="artist-stats-spins">{{ stat.spins }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="artist-stats-empty">No spins recorded yet.</p>
+  {% endif %}
+</div>

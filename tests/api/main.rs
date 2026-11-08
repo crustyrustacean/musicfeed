@@ -9,3 +9,4 @@ mod index;
 mod metadata_stub;
 mod persistence;
 mod rotation;
+mod stats;

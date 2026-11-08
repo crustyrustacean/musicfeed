@@ -5,6 +5,23 @@ All notable changes to MusicFeed are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-11-08
+
+Artist spin counts, so a page can show what has actually been on rotation rather
+than one random entry.
+
+### Added
+
+- `GET /stats` returns an SSE patch appending an artist leaderboard to
+  `#artist-stats-list`, then removing `#artist-stats-loading`. Same contract as
+  `GET /rotation`: the placeholder id is fixed, and a consumer without one is
+  unaffected.
+- `artist_stats(limit)` on the store. Grouped by artist, ordered by spins then
+  name, so equal counts do not reshuffle between requests. Bounded by the
+  route at 20 — a leaderboard, not a census.
+- Empty rotation renders an empty state rather than erroring; a grouping over
+  an empty table yields no rows, not a miss.
+
 ## [0.7.0] - 2026-11-05
 
 Consumers can now put their loading notice where the stream will clear it, and
@@ -335,7 +352,8 @@ Initial scaffold, renamed from the `axum-tera-datastar` starter.
   tracing, and graceful shutdown.
 - `GET /health_check` and a starter to-do demo.
 
-[Unreleased]: https://github.com/crustyrustacean/musicfeed/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/crustyrustacean/musicfeed/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.5.0...v0.6.0

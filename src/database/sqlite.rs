@@ -2,16 +2,13 @@
 
 use crate::configuration::DatabaseSettings;
 use crate::database::{DatabaseBackend, DatabaseError};
-use crate::domain::{NewRotationEntry, RotationEntry};
+use crate::domain::{ArtistStat, NewRotationEntry, RotationEntry};
 use anyhow::Context;
 use async_trait::async_trait;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{FromRow, SqlitePool};
 use std::str::FromStr;
 
-/// What a row looks like coming out of SQLite. Mirrors the migration exactly:
-/// `id` INTEGER, dates ISO-8601 TEXT (sqlx chrono feature), optional columns
-/// NULLable — the same NULL-for-`Option` translation metallian-photos uses.
 #[derive(Debug, FromRow)]
 struct RotationEntryRow {
     id: i64,
@@ -25,9 +22,6 @@ struct RotationEntryRow {
 
 impl From<RotationEntryRow> for RotationEntry {
     fn from(row: RotationEntryRow) -> Self {
-        // Ids are rowids: small, positive, monotonic. A value that does not
-        // fit in u64 is corruption rather than a corner case, so it fails
-        // loudly instead of wrapping.
         let id = u64::try_from(row.id).expect("rotation entry id overflowed u64");
         RotationEntry {
             id,
@@ -37,6 +31,21 @@ impl From<RotationEntryRow> for RotationEntry {
             cover: row.cover,
             year: row.year,
             note: row.note,
+        }
+    }
+}
+
+#[derive(Debug, FromRow)]
+struct ArtistStatRow {
+    artist: String,
+    spins: i64,
+}
+
+impl From<ArtistStatRow> for ArtistStat {
+    fn from(row: ArtistStatRow) -> Self {
+        ArtistStat {
+            artist: row.artist,
+            spins: row.spins.max(0) as u64,
         }
     }
 }
@@ -55,14 +64,9 @@ impl SqliteRepository {
         }
         let options = SqliteConnectOptions::from_str(&db_path)?
             .create_if_missing(true)
-            // WAL: readers (the blog island's GETs) do not block the writer (a
-            // form POST), and a crash between commit and checkpoint loses
-            // nothing that was acknowledged.
             .journal_mode(SqliteJournalMode::Wal);
         let pool = pool_opts.connect_with(options).await?;
 
-        // Embedded at compile time: a fresh database is migrated to head on
-        // first contact, and an existing one is verified against it.
         sqlx::migrate!("./migrations").run(&pool).await?;
 
         Ok(Self { pool })
@@ -123,6 +127,22 @@ impl DatabaseBackend for SqliteRepository {
         .ok_or(DatabaseError::NotFound)?;
 
         Ok(row.into())
+    }
+
+    async fn artist_stats(&self, limit: i64) -> Result<Vec<ArtistStat>, DatabaseError> {
+        let rows = sqlx::query_as::<_, ArtistStatRow>(
+            "SELECT artist, COUNT(*) as spins
+            FROM rotation_entries
+            GROUP BY artist
+            ORDER BY spins DESC, artist ASC
+            LIMIT ?",
+        )
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to obtain artist stats.")?;
+
+        Ok(rows.into_iter().map(Into::into).collect())
     }
 
     async fn list_incomplete(
