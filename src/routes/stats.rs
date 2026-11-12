@@ -2,8 +2,9 @@
 
 use crate::database::{DatabaseBackend, DatabaseError};
 use crate::domain::ArtistStat;
-use crate::utils::{compact_html, datastar_sse, error_chain_fmt};
+use crate::utils::{compact_html, error_chain_fmt};
 use actix_web::{HttpResponse, ResponseError, web};
+use datastar::actix::Sse;
 use datastar::prelude::*;
 use std::sync::Arc;
 use tera::{Context, Tera};
@@ -49,7 +50,7 @@ fn render_artist_stats(
 pub async fn get_artist_stats(
     templates: web::Data<Tera>,
     database: web::Data<Arc<dyn DatabaseBackend>>,
-) -> Result<HttpResponse, ArtistStatError> {
+) -> Result<Sse, ArtistStatError> {
     let artist_stats = database
         .artist_stats(ARTIST_STATS_LIMIT)
         .await
@@ -63,5 +64,5 @@ pub async fn get_artist_stats(
         .into_datastar_event();
     let clear_placeholder = PatchElements::new_remove(PLACEHOLDER_ID).into_datastar_event();
 
-    Ok(datastar_sse(vec![patch, clear_placeholder]))
+    Ok(Sse::new(tokio_stream::iter(vec![patch, clear_placeholder])))
 }

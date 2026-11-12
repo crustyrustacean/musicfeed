@@ -3,9 +3,10 @@
 use crate::database::{DatabaseBackend, DatabaseError};
 use crate::domain::{NewRotationEntry, RotationEntry};
 use crate::metadata::AlbumQuery;
-use crate::utils::{compact_html, datastar_sse, error_chain_fmt};
+use crate::utils::{compact_html, error_chain_fmt};
 use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
 use chrono::Local;
+use datastar::actix::{ReadSignals, Sse};
 use datastar::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -72,10 +73,8 @@ pub async fn post_rotation_entry_ds(
     templates: web::Data<Tera>,
     database: web::Data<Arc<dyn DatabaseBackend>>,
     metadata: web::Data<crate::metadata::MetadataClient>,
-    raw_rotation_entry: web::Json<RawRotationEntry>,
-) -> Result<HttpResponse, RotationEntryError> {
-    let raw_rotation_entry = raw_rotation_entry.into_inner();
-
+    ReadSignals(raw_rotation_entry): ReadSignals<RawRotationEntry>,
+) -> Result<Sse, RotationEntryError> {
     // Look the album up before anything else. This never blocks the save: a
     // miss and a failure both come back as empty metadata, and the user is told
     // which happened via the status signal below.
@@ -117,13 +116,13 @@ pub async fn post_rotation_entry_ds(
         events.push(status);
     }
 
-    Ok(datastar_sse(events))
+    Ok(Sse::new(tokio_stream::iter(events)))
 }
 
 pub async fn get_rotation_entry(
     templates: web::Data<Tera>,
     database: web::Data<Arc<dyn DatabaseBackend>>,
-) -> Result<HttpResponse, RotationEntryError> {
+) -> Result<Sse, RotationEntryError> {
     let entry = database.random().await.map_err(|error| match error {
         DatabaseError::NotFound => RotationEntryError::NotFound,
         other => RotationEntryError::Database(other),
@@ -137,5 +136,5 @@ pub async fn get_rotation_entry(
         .into_datastar_event();
     let clear_placeholder = PatchElements::new_remove(PLACEHOLDER_ID).into_datastar_event();
 
-    Ok(datastar_sse(vec![patch, clear_placeholder]))
+    Ok(Sse::new(tokio_stream::iter(vec![patch, clear_placeholder])))
 }

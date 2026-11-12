@@ -679,9 +679,16 @@ dependencies = [
 
 [[package]]
 name = "datastar"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27799c6e0b861af6c4bd0afc91454a0d3f2f9ac7560417bbf1bfd3da5d9d6205"
+version = "0.3.2"
+source = "git+https://github.com/crustyrustacean/datastar-rust.git?rev=bc3cc0e6216a733f204c8d92c50f9ecc45e6270f#bc3cc0e6216a733f204c8d92c50f9ecc45e6270f"
+dependencies = [
+ "actix-web",
+ "bytes",
+ "chrono",
+ "futures-util",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "deadpool"
