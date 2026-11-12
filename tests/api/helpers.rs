@@ -1,10 +1,11 @@
 // tests/api/helpers.rs
 
-use musicfeed::AppState;
 use musicfeed::Application;
-use musicfeed::configuration::{DatabaseSettings, MetadataSettings, get_configuration};
+use musicfeed::configuration::{DatabaseSettings, get_configuration};
+use musicfeed::database::{DatabaseBackend, SqliteRepository};
+use musicfeed::metadata::MetadataClient;
 use musicfeed::telemetry::{get_subscriber, init_subscriber};
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 // Ensure that the `tracing` stack is only initialised once using `once_cell`
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -71,23 +72,17 @@ pub async fn spawn_app_against(metadata_stub: crate::metadata_stub::MetadataStub
         max_connections: Some(1),
     };
 
-    let app_state = AppState::new(
-        &MetadataSettings {
-            musicbrainz_base_url: metadata_stub.musicbrainz.uri(),
-            cover_art_base_url: metadata_stub.cover_art.uri(),
-        },
-        // The same credentials base.toml supplies, so the authenticated client
-        // below matches what the app under test expects.
-        &configuration.basicauth,
-        &database_settings,
-        &configuration.cors,
-    )
-    .await
-    .expect("Failed to construct the application state");
+    let database: Arc<dyn DatabaseBackend> =
+        Arc::new(SqliteRepository::new(&database_settings).await.unwrap());
+    let metadata = MetadataClient::with_base_urls(
+        metadata_stub.musicbrainz.uri(),
+        metadata_stub.cover_art.uri(),
+    );
 
     build_test_app(
         app_address,
-        app_state,
+        database,
+        metadata,
         metadata_stub,
         &configuration.basicauth,
         database_dir,
@@ -112,21 +107,14 @@ pub async fn spawn_app_at(db_path: impl AsRef<std::path::Path>) -> TestApp {
     };
 
     let stub = crate::metadata_stub::MetadataStubs::miss().await;
-    let app_state = AppState::new(
-        &MetadataSettings {
-            musicbrainz_base_url: stub.musicbrainz.uri(),
-            cover_art_base_url: stub.cover_art.uri(),
-        },
-        &configuration.basicauth,
-        &database_settings,
-        &configuration.cors,
-    )
-    .await
-    .expect("Failed to construct the application state");
+    let database: Arc<dyn DatabaseBackend> =
+        Arc::new(SqliteRepository::new(&database_settings).await.unwrap());
+    let metadata = MetadataClient::with_base_urls(stub.musicbrainz.uri(), stub.cover_art.uri());
 
     build_test_app(
         app_address,
-        app_state,
+        database,
+        metadata,
         stub,
         &configuration.basicauth,
         tempfile::tempdir().expect("temp dir"),
@@ -137,14 +125,22 @@ pub async fn spawn_app_at(db_path: impl AsRef<std::path::Path>) -> TestApp {
 /// Shared construction: bind port 0, spawn the server, build the clients.
 async fn build_test_app(
     app_address: String,
-    app_state: AppState,
+    database: Arc<dyn DatabaseBackend>,
+    metadata: MetadataClient,
     metadata_stub: crate::metadata_stub::MetadataStubs,
     basicauth: &musicfeed::configuration::BasicAuthSettings,
     database_dir: tempfile::TempDir,
 ) -> TestApp {
-    let application = Application::build(&app_address, app_state)
-        .await
-        .expect("Unable to build the application");
+    let configuration = get_configuration().expect("Failed to read configuration");
+    let application = Application::build(
+        &app_address,
+        database,
+        metadata,
+        configuration.basicauth.clone(),
+        configuration.cors,
+    )
+    .await
+    .expect("Unable to build the application");
 
     let application_port = application
         .port()

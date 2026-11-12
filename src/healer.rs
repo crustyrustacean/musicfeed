@@ -20,6 +20,7 @@
 
 use crate::database::{DatabaseBackend, DatabaseError};
 use crate::metadata::{AlbumQuery, MetadataClient};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// What one healing pass accomplished.
@@ -84,7 +85,11 @@ pub async fn heal_once(
 ///
 /// Detached by design — the task dies with the process, and a pass interrupted
 /// by a restart is redone on the next one.
-pub fn spawn_healer(state: crate::AppState, settings: crate::configuration::HealingSettings) {
+pub fn spawn_healer(
+    database: Arc<dyn DatabaseBackend>,
+    metadata: MetadataClient,
+    settings: crate::configuration::HealingSettings,
+) {
     if !settings.enabled {
         tracing::info!("metadata healer disabled by configuration");
         return;
@@ -93,8 +98,8 @@ pub fn spawn_healer(state: crate::AppState, settings: crate::configuration::Heal
     tokio::spawn(async move {
         loop {
             match heal_once(
-                state.database.as_ref(),
-                &state.metadata,
+                database.as_ref(),
+                &metadata,
                 settings.max_attempts,
                 settings.per_pass as usize,
             )

@@ -70,7 +70,7 @@ need_stdout = false
 #
 # Backed by nextest rather than `cargo test`: each test gets its own process, so
 # the integration tests in tests/api can run in parallel. They already bind port 0
-# and build a fresh AppState apiece, so they are safe to parallelise.
+# and build fresh application dependencies apiece, so they are safe to parallelise.
 [jobs.test]
 command = [
     "cargo", "nextest", "run",

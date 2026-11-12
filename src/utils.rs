@@ -1,5 +1,10 @@
 // src/utils.rs
 
+use actix_web::HttpResponse;
+use actix_web::http::header::{CACHE_CONTROL, CONTENT_TYPE};
+use actix_web::web::Bytes;
+use datastar::DatastarEvent;
+use std::convert::Infallible;
 use tokio::signal;
 
 /// Collapse a rendered HTML fragment onto a single line.
@@ -58,6 +63,20 @@ pub async fn shutdown_signal() {
         _ = ctrl_c => {},
         _ = terminate => {},
     }
+}
+
+pub fn datastar_sse(events: Vec<DatastarEvent>) -> HttpResponse {
+    let stream = tokio_stream::iter(
+        events
+            .into_iter()
+            .map(|event| Ok::<_, Infallible>(Bytes::from(event.to_string()))),
+    );
+
+    HttpResponse::Ok()
+        .insert_header((CONTENT_TYPE, "text/event-stream"))
+        .insert_header((CACHE_CONTROL, "no-cache"))
+        .insert_header(("connection", "keep-alive"))
+        .streaming(stream)
 }
 
 pub fn error_chain_fmt(

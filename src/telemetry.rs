@@ -1,45 +1,36 @@
 // src/telemetry.rs
 
-use axum::{extract::MatchedPath, http::Request};
-use tower_http::request_id::{MakeRequestId, RequestId};
+use actix_web::Error;
+use actix_web::body::{BoxBody, MessageBody};
+use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_web::http::header::{HeaderName, HeaderValue};
+use actix_web::middleware::Next;
+use tracing::Subscriber;
 use tracing::subscriber::set_global_default;
-use tracing::{Span, Subscriber};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
 use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::{EnvFilter, Registry, layer::SubscriberExt};
 use uuid::Uuid;
 
-#[derive(Clone, Copy, Debug)]
-pub struct MakeRequestUuid;
+const X_REQUEST_ID: HeaderName = HeaderName::from_static("x-request-id");
 
-impl MakeRequestId for MakeRequestUuid {
-    fn make_request_id<B>(&mut self, _: &Request<B>) -> Option<RequestId> {
-        let request_id = Uuid::new_v4().to_string();
-        Some(RequestId::new(request_id.parse().unwrap()))
-    }
-}
+pub async fn request_id(
+    mut req: ServiceRequest,
+    next: Next<impl MessageBody + 'static>,
+) -> Result<ServiceResponse<BoxBody>, Error> {
+    let request_id = Uuid::new_v4().to_string();
+    let request_id_header = HeaderValue::from_str(&request_id).expect("UUID is a valid header");
+    req.headers_mut()
+        .insert(X_REQUEST_ID.clone(), request_id_header.clone());
 
-pub fn request_span<B>(req: &Request<B>) -> Span {
-    let request_id = req
-        .extensions()
-        .get::<RequestId>()
-        .and_then(|id| id.header_value().to_str().ok())
-        .unwrap_or_default()
-        .to_string();
+    let response = next.call(req).await?;
+    let mut response = response.map_into_boxed_body();
+    response
+        .headers_mut()
+        .insert(X_REQUEST_ID, request_id_header);
 
-    let matched_path = req
-        .extensions()
-        .get::<MatchedPath>()
-        .map(|p| p.as_str().to_string())
-        .unwrap_or_default();
-
-    tracing::info_span!(
-        "request",
-        method = %req.method(),
-        matched_path,
-        request_id,
-    )
+    Ok(response)
 }
 
 pub fn get_subscriber<Sink>(
@@ -61,7 +52,6 @@ where
 }
 
 pub fn init_subscriber(subscriber: impl Subscriber + Sync + Send) {
-    // Redirect logs to subscriber
     LogTracer::init().expect("Failed to set logger");
     set_global_default(subscriber).expect("Failed to set subscriber");
 }

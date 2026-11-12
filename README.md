@@ -61,13 +61,13 @@ entry should keep the last appended `.rotation-widget` and drop any earlier ones
 
 ## Built with
 
-- Rust and [Axum](https://github.com/tokio-rs/axum)
+- Rust and [Actix Web](https://actix.rs/)
 - [Tera](https://github.com/Keats/tera) templates and [Datastar](https://data-star.dev/) for the
   interactive form and the live patch
 - SQLite via [sqlx](https://github.com/launchbadge/sqlx), migrations embedded in the binary
 - MusicBrainz and the Cover Art Archive for album metadata
 
-This grew out of my [Axum-Tera-Datastar starter](https://github.com/crustyrustacean/axum-tera-datastar).
+This grew out of my earlier [Axum-Tera-Datastar starter](https://github.com/crustyrustacean/axum-tera-datastar); the service now runs on Actix Web.
 
 ## Running it
 
@@ -76,7 +76,7 @@ environment variables.
 
 ```bash
 cargo run                # http://127.0.0.1:8000, using configuration/local.toml
-cargo test               # 66 tests, no network required
+cargo test               # 74 tests, no network required
 ```
 
 The default local credentials are `test` / `test`. Set real ones for anything reachable:

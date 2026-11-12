@@ -8,7 +8,6 @@ pub mod healer;
 pub mod metadata;
 pub mod middleware;
 pub mod routes;
-pub mod state;
 pub mod telemetry;
 pub mod utils;
 
@@ -18,6 +17,5 @@ pub use domain::*;
 pub use metadata::*;
 pub use middleware::*;
 pub use routes::*;
-pub use state::*;
 pub use telemetry::*;
 pub use utils::*;
