@@ -1,7 +1,7 @@
 // src/routes/health_check.rs
 
-use axum::{http::StatusCode, response::IntoResponse};
+use actix_web::{HttpResponse, Responder};
 
-pub async fn health_check() -> impl IntoResponse {
-    StatusCode::OK
+pub async fn health_check() -> impl Responder {
+    HttpResponse::Ok().finish()
 }

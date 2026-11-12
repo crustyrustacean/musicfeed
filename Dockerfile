@@ -38,7 +38,7 @@ RUN apt-get update -y \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
-# `get_configuration` reads configuration/, `AppState::new` globs templates/
+# `get_configuration` reads configuration/, `Application::build` globs templates/
 # and the datastar client is served from static/. migrations/ is NOT copied:
 # sqlx::migrate!("./migrations") embeds the SQL at compile time, so the
 # binary carries its own schema. Consequence worth knowing — changing a

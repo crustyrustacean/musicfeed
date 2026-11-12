@@ -1,15 +1,10 @@
 // src/routes/index.rs
 
-use crate::AppState;
-use crate::database::DatabaseError;
+use crate::database::{DatabaseBackend, DatabaseError};
 use crate::utils::error_chain_fmt;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::{Html, IntoResponse, Response},
-};
-use axum_macros::debug_handler;
-use tera::Context;
+use actix_web::{HttpResponse, ResponseError, web};
+use std::sync::Arc;
+use tera::{Context, Tera};
 
 #[derive(thiserror::Error)]
 pub enum IndexError {
@@ -25,20 +20,24 @@ impl std::fmt::Debug for IndexError {
     }
 }
 
-impl IntoResponse for IndexError {
-    fn into_response(self) -> Response {
+impl ResponseError for IndexError {
+    fn error_response(&self) -> HttpResponse {
         tracing::error!(error = ?self, "index page failed");
-        (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong.").into_response()
+        HttpResponse::InternalServerError().body("Something went wrong.")
     }
 }
 
-#[debug_handler]
-pub async fn get_index_page(State(state): State<AppState>) -> Result<Html<String>, IndexError> {
-    let rotation_entries = state.database.list().await?;
+pub async fn get_index_page(
+    templates: web::Data<Tera>,
+    database: web::Data<Arc<dyn DatabaseBackend>>,
+) -> Result<HttpResponse, IndexError> {
+    let rotation_entries = database.list().await?;
     let mut context = Context::new();
     context.insert("rotation_entries", &rotation_entries);
 
-    let body = Html(state.templates.render("index.html", &context)?);
+    let body = templates.render("index.html", &context)?;
 
-    Ok(body)
+    Ok(HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(body))
 }
