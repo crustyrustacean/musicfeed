@@ -20,5 +20,8 @@ AGENTS.md
 *.db-shm
 *.db-wal
 
+# Local Railway CLI configuration
+.railway/
+
 # Local planning documents
 .plans/

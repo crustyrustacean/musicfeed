@@ -1,6 +1,6 @@
 // tests/api/stats.rs
 
-use crate::helpers::spawn_app;
+use crate::helpers::{assert_sse_framing, assert_sse_headers, spawn_app, sse_body};
 use musicfeed::database::{DatabaseBackend, SqliteRepository};
 use musicfeed::domain::NewRotationEntry;
 
@@ -151,4 +151,89 @@ async fn get_artist_stats_renders_empty_state_without_entries() {
     assert!(response.status().is_success());
     let body = response.text().await.unwrap();
     assert!(body.contains("No spins recorded yet."));
+}
+
+#[tokio::test]
+async fn get_artist_stats_streams_a_well_framed_finite_sse_response() {
+    // Arrange
+    let app = spawn_app().await;
+    let seed = app
+        .api_client
+        .post(format!("{}/rotation", app.address))
+        .json(&serde_json::json!({
+            "artist": "Sabaton",
+            "album": "Attero Dominatus",
+            "note": ""
+        }))
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+    assert!(seed.status().is_success());
+    sse_body(seed).await;
+
+    // Act — the blog island fetches this unauthenticated, on purpose
+    let response = app
+        .unauthenticated_client
+        .get(format!("{}/stats", app.address))
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // Assert — transport headers, framing, and a stream that ends on its own
+    assert!(response.status().is_success());
+    assert_sse_headers(&response);
+    let body = sse_body(response).await;
+
+    // Two events: the append, then the placeholder removal.
+    let events = assert_sse_framing(&body, 2);
+    let html = events[0].dataline("elements").expect("stats HTML payload");
+    assert!(html.contains("artist-stats-widget"));
+    assert!(html.contains("Sabaton"));
+    assert!(events[1].dataline("elements").is_none());
+    assert_eq!(
+        events[0].event.as_deref(),
+        Some("datastar-patch-elements"),
+        "the first event must patch elements:\n{body}"
+    );
+    assert_eq!(
+        events[1].event.as_deref(),
+        Some("datastar-patch-elements"),
+        "the second event must patch elements:\n{body}"
+    );
+
+    // ...in that order: append the leaderboard, then clear its placeholder.
+    assert_eq!(
+        events[0].dataline("selector"),
+        Some("#artist-stats-list"),
+        "the append must target the stats list:\n{body}"
+    );
+    assert_eq!(
+        events[0].dataline("mode"),
+        Some("append"),
+        "the append must be an append:\n{body}"
+    );
+    assert_eq!(
+        events[1].dataline("selector"),
+        Some("#artist-stats-loading"),
+        "the removal must target the stats placeholder:\n{body}"
+    );
+    assert_eq!(
+        events[1].dataline("mode"),
+        Some("remove"),
+        "the placeholder event must be a removal:\n{body}"
+    );
+
+    // The rendered leaderboard must arrive as ONE dataline; multi-line splits
+    // would make Datastar patch fragments instead of the whole widget.
+    assert_eq!(
+        events[0]
+            .data
+            .iter()
+            .filter(|line| line.starts_with("elements "))
+            .count(),
+        1,
+        "the stats widget must arrive as a single `elements` dataline:\n{body}"
+    );
 }

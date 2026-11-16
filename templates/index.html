@@ -12,47 +12,75 @@
     <title>MusicFeed</title>
   </head>
   <body>
-    <header>
+    <header class="page-header">
+      <p class="eyebrow">Your listening journal</p>
       <h1>MusicFeed</h1>
+      <p class="page-intro">Keep track of what’s been on rotation.</p>
     </header>
 
     <main>
-      <form id="rotation-form" data-on:submit__prevent="@post('/rotation')">
-        <div class="field">
-          <label for="artist">Artist</label>
-          <input id="artist" type="text" data-bind:artist required autofocus />
+      <section class="add-section" aria-labelledby="add-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Add a listen</p>
+            <h2 id="add-heading">What’s spinning?</h2>
+          </div>
+          <p>Enter an artist and album. We’ll look up the rest.</p>
         </div>
 
-        <div class="field">
-          <label for="album">Album</label>
-          <input id="album" type="text" data-bind:album required />
+        <form id="rotation-form" data-on:submit__prevent="@post('/rotation?view=table')">
+          <div class="field">
+            <label for="artist">Artist</label>
+            <input id="artist" type="text" data-bind:artist required autofocus />
+          </div>
+
+          <div class="field">
+            <label for="album">Album</label>
+            <input id="album" type="text" data-bind:album required />
+          </div>
+
+          <div class="field field-note">
+            <label for="note">Note <span class="optional">(optional)</span></label>
+            <input id="note" type="text" data-bind:note />
+          </div>
+
+          <button type="submit" class="submit">Add to rotation</button>
+        </form>
+
+        <!-- A lookup failure does not prevent the entry from being saved. -->
+        <p id="metadata-status" class="metadata-status" role="status" data-text="$metadata_status"></p>
+      </section>
+
+      <section class="rotation-section" aria-labelledby="rotation-heading">
+        <div class="section-heading rotation-heading">
+          <div>
+            <p class="eyebrow">The collection</p>
+            <h2 id="rotation-heading">Your rotation</h2>
+          </div>
+          <p>Every album you’ve added, all in one place.</p>
         </div>
 
-        <div class="field field-full">
-          <label for="note">Note</label>
-          <input id="note" type="text" data-bind:note />
-        </div>
-
-        <button type="submit" class="submit">Add to rotation</button>
-      </form>
-
-      <!-- Populated only when a lookup fails. The entry is still saved; this
-           just says why it arrived without a cover. -->
-      <p id="metadata-status" class="metadata-status" data-text="$metadata_status"></p>
-
-      <ul id="rotation-list">
-        {% for rotation_entry in rotation_entries %}{% include "rotation.html" %}{% endfor %}
-        <!--
-        The empty-state message lives INSIDE the list so that the append patch targets
-        the same element every time. Its id is part of the stream contract: the handler
-        removes `#rotation-loading` whenever it appends an entry, so this node cannot
-        survive as stale text below the list. The blog's loading notice uses the same
-        id, which is why the removal is addressed by id rather than by class.
-        -->
-        <li id="rotation-loading" class="rotation-empty" {% if rotation_entries | length > 0 %}hidden{% endif %}>
-          Nothing spinning yet. Add the first entry above.
-        </li>
-      </ul>
+        <table class="rotation-table" role="table">
+          <caption class="visually-hidden">Albums in your rotation</caption>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th scope="col" role="columnheader">Cover</th>
+              <th scope="col" role="columnheader">Artist</th>
+              <th scope="col" role="columnheader">Album</th>
+              <th scope="col" role="columnheader">Year</th>
+              <th scope="col" role="columnheader">Note</th>
+              <th scope="col" role="columnheader">Listened</th>
+            </tr>
+          </thead>
+          <tbody id="rotation-table-body" role="rowgroup">
+            {% for rotation_entry in rotation_entries %}{% include "rotation_row.html" %}{% endfor %}
+            <!-- The POST stream removes this placeholder after appending a row. -->
+            <tr id="rotation-loading" class="rotation-empty" role="row" {% if rotation_entries | length > 0 %}hidden{% endif %}>
+              <td colspan="6" role="cell">Nothing spinning yet. Add the first entry above.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </main>
 
     <script type="module" src="/static/datastar.js"></script>

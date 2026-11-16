@@ -1,0 +1,15 @@
+<tr id="rotation-entry-{{ rotation_entry.id }}" class="rotation-row" role="row">
+  <td role="cell" class="rotation-cover-cell">
+    <span class="cell-label" aria-hidden="true">Cover</span>
+    {% if rotation_entry.cover | default(value="") %}
+    <img class="rotation-cover" src="{{ rotation_entry.cover }}" alt="" loading="lazy" width="64" height="64" />
+    {% else %}
+    <span class="cover-placeholder">No cover</span>
+    {% endif %}
+  </td>
+  <td role="cell" class="rotation-artist-cell"><span class="cell-label" aria-hidden="true">Artist</span>{{ rotation_entry.artist }}</td>
+  <td role="cell" class="rotation-album-cell"><span class="cell-label" aria-hidden="true">Album</span>{{ rotation_entry.album }}</td>
+  <td role="cell" class="rotation-year-cell"><span class="cell-label" aria-hidden="true">Year</span>{% if rotation_entry.year is defined %}{{ rotation_entry.year }}{% else %}<span class="missing-value">Unknown</span>{% endif %}</td>
+  <td role="cell" class="rotation-note-cell"><span class="cell-label" aria-hidden="true">Note</span>{% if rotation_entry.note | default(value="") %}{{ rotation_entry.note }}{% else %}<span class="missing-value">No note</span>{% endif %}</td>
+  <td role="cell" class="rotation-listened-cell"><span class="cell-label" aria-hidden="true">Listened</span><time datetime="{{ rotation_entry.listened_date }}">{{ rotation_entry.listened_date }}</time></td>
+</tr>

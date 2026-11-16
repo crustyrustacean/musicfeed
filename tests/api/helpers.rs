@@ -122,6 +122,136 @@ pub async fn spawn_app_at(db_path: impl AsRef<std::path::Path>) -> TestApp {
     .await
 }
 
+// --- Server-sent events ---
+//
+// The rotation and stats routes answer with SSE streams of Datastar patches.
+// These helpers let tests assert on the wire contract — transport headers,
+// blank-line framing, event order and dataline payloads — without reaching
+// into the app's internal representation of a patch.
+
+/// One parsed SSE frame: the `event:` name (if any) and every `data:` line's
+/// value, in wire order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SseEvent {
+    pub event: Option<String>,
+    pub data: Vec<String>,
+}
+
+impl SseEvent {
+    /// The value of the first dataline named `key`, e.g. `selector` or `mode`.
+    ///
+    /// Datastar datalines look like `data: selector #rotation-list`, so the
+    /// value is everything after `key `.
+    pub fn dataline(&self, key: &str) -> Option<&str> {
+        self.data.iter().find_map(|line| {
+            line.strip_prefix(key)
+                .and_then(|rest| rest.strip_prefix(' '))
+        })
+    }
+}
+
+/// Parse an SSE wire body into its frames.
+///
+/// Per the SSE spec a frame is a block of `field: value` lines terminated by
+/// one blank line. Anything after the last blank line is an unterminated frame
+/// and is dropped — callers that care should also assert the body ends with
+/// `\n\n`, which [`assert_sse_framing`] does.
+pub fn parse_sse(body: &str) -> Vec<SseEvent> {
+    let fresh = || SseEvent {
+        event: None,
+        data: Vec::new(),
+    };
+    let mut events = Vec::new();
+    let mut event = fresh();
+    for line in body.lines() {
+        if line.is_empty() {
+            if event.event.is_some() || !event.data.is_empty() {
+                events.push(std::mem::replace(&mut event, fresh()));
+            }
+            continue;
+        }
+        if let Some(name) = line.strip_prefix("event: ") {
+            assert!(
+                event.event.replace(name.to_owned()).is_none(),
+                "multiple event names without a blank-line separator:\n{body}"
+            );
+        } else if let Some(data) = line.strip_prefix("data: ") {
+            event.data.push(data.to_owned());
+        }
+        // Other fields (`id:`, `retry:`, comments) are not part of this contract.
+    }
+    events
+}
+
+/// Assert the response carries the transport headers every SSE consumer
+/// requires: without `text/event-stream` the browser will not treat the body as
+/// an event stream at all, and `no-cache` keeps intermediaries from swallowing
+/// events on a replay.
+pub fn assert_sse_headers(response: &reqwest::Response) {
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .expect("SSE response must carry a content-type")
+        .to_str()
+        .expect("content-type must be ASCII");
+    assert!(
+        content_type.split(';').next().unwrap().trim() == "text/event-stream",
+        "expected text/event-stream, got: {content_type}"
+    );
+
+    let cache_control = response
+        .headers()
+        .get(reqwest::header::CACHE_CONTROL)
+        .expect("SSE response must carry cache-control")
+        .to_str()
+        .expect("cache-control must be ASCII");
+    assert!(
+        cache_control
+            .split(',')
+            .any(|directive| directive.trim().eq_ignore_ascii_case("no-cache")),
+        "expected no-cache, got: {cache_control}"
+    );
+}
+
+/// Read an SSE response body to completion under a hard bound.
+///
+/// The routes under test send finite streams, so the response body must finish
+/// on its own; a regression to an open-ended stream fails here instead of hanging
+/// the suite forever.
+pub async fn sse_body(response: reqwest::Response) -> String {
+    tokio::time::timeout(std::time::Duration::from_secs(10), response.text())
+        .await
+        .expect("the stream should end on its own within 10 seconds")
+        .expect("Failed to read the stream")
+}
+
+/// Assert the body is a stream of exactly `expected` well-framed SSE events and
+/// return them in wire order.
+///
+/// Every frame must be closed by a blank line — including the last, so the
+/// finite stream ends cleanly rather than leaving a dangling frame — and every
+/// frame must name its event type.
+pub fn assert_sse_framing(body: &str, expected: usize) -> Vec<SseEvent> {
+    // SSE allows LF, CRLF and CR line endings; test event boundaries, not the
+    // encoder's choice of newline.
+    let normalized = body.replace("\r\n", "\n").replace('\r', "\n");
+    assert!(
+        normalized.ends_with("\n\n"),
+        "the final event must be terminated by a blank line:\n{body}"
+    );
+    let events = parse_sse(&normalized);
+    assert_eq!(
+        events.len(),
+        expected,
+        "expected {expected} blank-line-delimited events:\n{body}"
+    );
+    assert!(
+        events.iter().all(|e| e.event.is_some()),
+        "every event must name its type:\n{body}"
+    );
+    events
+}
+
 /// Shared construction: bind port 0, spawn the server, build the clients.
 async fn build_test_app(
     app_address: String,

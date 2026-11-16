@@ -30,16 +30,17 @@ nothing for anyone else to install or run.
 
 | Method | Path            | Notes                                                        |
 | ------ | --------------- | ------------------------------------------------------------ |
-| `GET`  | `/`             | The entry form and the full rotation list                     |
+| `GET`  | `/`             | The entry form and the full rotation table                    |
 | `GET`  | `/rotation`     | Server-sent events: one randomly chosen entry as a Datastar patch |
 | `POST` | `/rotation`     | Add an entry (Basic auth). Streams the patch back             |
-| `GET`  | `/health_check` | Liveness                                                       |
+| `GET`  | `/stats`        | Artist leaderboard as Datastar patches                       |
+| `GET`  | `/health_check`, `/health` | Liveness                                         |
 
 `GET /rotation` answers `404` when the rotation is empty.
 
 ### The stream contract
 
-Both `GET /rotation` and `POST /rotation` answer with server-sent events carrying Datastar
+Both `GET /rotation` and a default `POST /rotation` answer with server-sent events carrying Datastar
 `datastar-patch-elements` messages, in this order:
 
 1. **append** a rendered entry to `#rotation-list`
@@ -59,6 +60,10 @@ If you have no such element, nothing happens: removing a missing node is a no-op
 The entries themselves are appended, never replaced, so a consumer that wants exactly one visible
 entry should keep the last appended `.rotation-widget` and drop any earlier ones.
 
+The landing page submits to `POST /rotation?view=table` instead: its append patch contains a table
+row targeting `#rotation-table-body`, followed by the same placeholder removal. Both POST variants
+then reset the form signals and, if the metadata lookup failed, send a status signal.
+
 ## Built with
 
 - Rust and [Actix Web](https://actix.rs/)
@@ -76,7 +81,7 @@ environment variables.
 
 ```bash
 cargo run                # http://127.0.0.1:8000, using configuration/local.toml
-cargo test               # 74 tests, no network required
+cargo test               # tests use local metadata stubs
 ```
 
 The default local credentials are `test` / `test`. Set real ones for anything reachable:

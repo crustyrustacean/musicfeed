@@ -4,9 +4,10 @@ use crate::database::{DatabaseBackend, DatabaseError};
 use crate::domain::{NewRotationEntry, RotationEntry};
 use crate::metadata::AlbumQuery;
 use crate::utils::{compact_html, error_chain_fmt};
-use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
+use actix_sse::{Event, Sse};
+use actix_web::{HttpResponse, Responder, ResponseError, http::StatusCode, web};
 use chrono::Local;
-use datastar::actix::{ReadSignals, Sse};
+use datastar::actix_web::ReadSignals;
 use datastar::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -62,19 +63,29 @@ pub struct RawRotationEntry {
 const METADATA_STATUS: &str = "metadata_status";
 const LOOKUP_FAILED: &str = "Could not look that up - saved without a cover or year";
 
-/// Render a single rotation entry fragment via Tera.
-fn render_rotation(templates: &Tera, entry: &RotationEntry) -> Result<String, RotationEntryError> {
+/// Render a single entry as either the public widget or a landing-page table row.
+fn render_rotation(
+    templates: &Tera,
+    entry: &RotationEntry,
+    template: &str,
+) -> Result<String, RotationEntryError> {
     let mut context = Context::new();
     context.insert("rotation_entry", entry);
-    Ok(compact_html(&templates.render("rotation.html", &context)?))
+    Ok(compact_html(&templates.render(template, &context)?))
+}
+
+#[derive(Deserialize)]
+pub struct RotationView {
+    view: Option<String>,
 }
 
 pub async fn post_rotation_entry_ds(
     templates: web::Data<Tera>,
     database: web::Data<Arc<dyn DatabaseBackend>>,
     metadata: web::Data<crate::metadata::MetadataClient>,
+    view: web::Query<RotationView>,
     ReadSignals(raw_rotation_entry): ReadSignals<RawRotationEntry>,
-) -> Result<Sse, RotationEntryError> {
+) -> Result<impl Responder, RotationEntryError> {
     // Look the album up before anything else. This never blocks the save: a
     // miss and a failure both come back as empty metadata, and the user is told
     // which happened via the status signal below.
@@ -94,10 +105,17 @@ pub async fn post_rotation_entry_ds(
     };
     let entry = database.insert(new_entry).await?;
 
-    let rendered = render_rotation(&templates, &entry)?;
+    // The form requests a table row; the default remains the public widget
+    // response used by existing clients of POST /rotation.
+    let (template, selector) = if view.view.as_deref() == Some("table") {
+        ("rotation_row.html", "#rotation-table-body")
+    } else {
+        ("rotation.html", "#rotation-list")
+    };
+    let rendered = render_rotation(&templates, &entry, template)?;
 
     let patch = PatchElements::new(rendered)
-        .selector("#rotation-list")
+        .selector(selector)
         .mode(ElementPatchMode::Append)
         .into_datastar_event();
 
@@ -116,19 +134,21 @@ pub async fn post_rotation_entry_ds(
         events.push(status);
     }
 
-    Ok(Sse::new(tokio_stream::iter(events)))
+    Ok(Sse::from_infallible_stream(tokio_stream::iter(
+        events.into_iter().map(Event::from),
+    )))
 }
 
 pub async fn get_rotation_entry(
     templates: web::Data<Tera>,
     database: web::Data<Arc<dyn DatabaseBackend>>,
-) -> Result<Sse, RotationEntryError> {
+) -> Result<impl Responder, RotationEntryError> {
     let entry = database.random().await.map_err(|error| match error {
         DatabaseError::NotFound => RotationEntryError::NotFound,
         other => RotationEntryError::Database(other),
     })?;
 
-    let rendered = render_rotation(&templates, &entry)?;
+    let rendered = render_rotation(&templates, &entry, "rotation.html")?;
 
     let patch = PatchElements::new(rendered)
         .selector("#rotation-list")
@@ -136,5 +156,7 @@ pub async fn get_rotation_entry(
         .into_datastar_event();
     let clear_placeholder = PatchElements::new_remove(PLACEHOLDER_ID).into_datastar_event();
 
-    Ok(Sse::new(tokio_stream::iter(vec![patch, clear_placeholder])))
+    Ok(Sse::from_infallible_stream(tokio_stream::iter(
+        [patch, clear_placeholder].map(Event::from),
+    )))
 }

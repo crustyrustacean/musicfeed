@@ -5,6 +5,23 @@ All notable changes to MusicFeed are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.9.0] - 2026-11-16
+
+### Added
+
+- A responsive landing-page table showing the full rotation, including cover, artist,
+  album, release year, note, and listened date. New submissions appear without a reload.
+- `POST /rotation?view=table` returns an SSE patch targeting `#rotation-table-body`;
+  the default POST response and public GET widget contract remain unchanged.
+
+### Changed
+
+- Migrated the service from Axum to Actix Web, and updated to the Datastar Actix Web
+  adapter and `actix-sse` 0.2 for server-sent events.
+- Updated `actix-files` to 0.7 and SQLx to 0.9.
+
 ## [0.8.0] - 2026-11-08
 
 Artist spin counts, so a page can show what has actually been on rotation rather
@@ -51,8 +68,6 @@ the service stops depending on undocumented dashboard state.
 
 - Deploying is still `railway up`. `railway.toml` is read by that path; it does
   not assume a connected repo.
-
-## [Unreleased]
 
 ## [0.6.1] - 2026-10-14
 
@@ -352,7 +367,8 @@ Initial scaffold, renamed from the `axum-tera-datastar` starter.
   tracing, and graceful shutdown.
 - `GET /health_check` and a starter to-do demo.
 
-[Unreleased]: https://github.com/crustyrustacean/musicfeed/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/crustyrustacean/musicfeed/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.0...v0.6.1

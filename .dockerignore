@@ -4,10 +4,16 @@
 .github
 .gitignore
 .rho
+.railway
 logs
 
 target
 .bacon-logs
+
+# Local SQLite databases must not enter the build context.
+*.db
+*.db-shm
+*.db-wal
 
 # Scratch files from working sessions.
 .git-commit-msg.txt
