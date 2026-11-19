@@ -115,7 +115,7 @@ async fn posted_entry_appears_in_index_list() {
     let app = spawn_app_against(stubs).await;
 
     // Act
-    let before = chrono::Local::now().date_naive().to_string();
+    let before = jiff::ZonedDateTime::now().date().to_string();
     let response = app
         .api_client
         .post(format!("{}/rotation", app.address))
@@ -124,7 +124,7 @@ async fn posted_entry_appears_in_index_list() {
         .await
         .expect("Failed to execute request.");
     assert!(response.status().is_success());
-    let after = chrono::Local::now().date_naive().to_string();
+    let after = jiff::ZonedDateTime::now().date().to_string();
 
     let body = app
         .api_client
@@ -1127,7 +1127,7 @@ async fn table_post_streams_one_shared_row_then_removes_placeholder_and_resets()
     let stubs =
         crate::metadata_stub::MetadataStubs::full_hit("b4974b0b-305e-4f98-b16d-04112f3cced2").await;
     let app = spawn_app_against(stubs).await;
-    let before = chrono::Local::now().date_naive().to_string();
+    let before = jiff::ZonedDateTime::now().date().to_string();
     let response = app
         .api_client
         .post(format!("{}/rotation?view=table", app.address))
@@ -1136,7 +1136,7 @@ async fn table_post_streams_one_shared_row_then_removes_placeholder_and_resets()
         .send()
         .await
         .unwrap();
-    let after = chrono::Local::now().date_naive().to_string();
+    let after = jiff::ZonedDateTime::now().date().to_string();
     assert!(response.status().is_success());
     assert_sse_headers(&response);
     let body = sse_body(response).await;
@@ -1227,7 +1227,7 @@ async fn table_post_streams_one_shared_row_then_removes_placeholder_and_resets()
 #[tokio::test]
 async fn table_post_escapes_fields_and_missing_metadata_on_both_render_paths() {
     let app = spawn_app().await;
-    let before = chrono::Local::now().date_naive().to_string();
+    let before = jiff::ZonedDateTime::now().date().to_string();
     let input = serde_json::json!({
         "artist": "<Artist>", "album": "Album & More", "note": "<img src=x onerror=alert(1)>"
     });
@@ -1238,7 +1238,7 @@ async fn table_post_escapes_fields_and_missing_metadata_on_both_render_paths() {
         .send()
         .await
         .unwrap();
-    let after = chrono::Local::now().date_naive().to_string();
+    let after = jiff::ZonedDateTime::now().date().to_string();
     assert!(response.status().is_success());
     let body = sse_body(response).await;
     let events = assert_sse_framing(&body, 3);

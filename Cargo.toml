@@ -1,6 +1,6 @@
 [package]
 name = "musicfeed"
-version = "0.9.0"
+version = "0.9.1"
 edition = "2024"
 
 [[bin]]
@@ -11,15 +11,15 @@ path = "src/bin/main.rs"
 anyhow = "1"
 actix-cors = "0.7"
 actix-files = "0.7"
-actix-sse = "0.2"
+actix-sse = "0.3"
 actix-web = "4"
 async-trait = "0.1"
 base64 = "0.23"
-chrono = { version = "0.4", features = ["serde"] }
+jiff = { version = "1", features = ["serde"] }
 config = { version = "0.15", default-features = false, features = ["toml"] }
 datastar = { git = "https://github.com/crustyrustacean/datastar-rust.git", features = ["actix-web"] }
 serde = { version = "1", features = ["derive"] }
-sqlx = { version = "0.9", features = [ "runtime-tokio", "sqlite", "chrono" ] }
+sqlx = { version = "0.9", features = [ "runtime-tokio", "sqlite" ] }
 tera = { version = "2", features = ["fast", "glob_fs"] }
 thiserror = "2"
 subtle = "2"
@@ -34,7 +34,6 @@ tracing-subscriber = { version = "0.3", features = [ "registry", "env-filter" ] 
 uuid = { version = "1", features = ["v4", "serde"] }
 
 [dev-dependencies]
-
 tempfile = "3"
 serde_json = "1"
 wiremock = "0.6.5"

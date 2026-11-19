@@ -12,7 +12,7 @@ use std::str::FromStr;
 #[derive(Debug, FromRow)]
 struct RotationEntryRow {
     id: i64,
-    listened_date: chrono::NaiveDate,
+    listened_date: String,
     artist: String,
     album: String,
     cover: Option<String>,
@@ -20,18 +20,29 @@ struct RotationEntryRow {
     note: Option<String>,
 }
 
-impl From<RotationEntryRow> for RotationEntry {
-    fn from(row: RotationEntryRow) -> Self {
-        let id = u64::try_from(row.id).expect("rotation entry id overflowed u64");
-        RotationEntry {
+impl TryFrom<RotationEntryRow> for RotationEntry {
+    type Error = anyhow::Error;
+
+    fn try_from(row: RotationEntryRow) -> Result<Self, Self::Error> {
+        let id = u64::try_from(row.id).context("rotation entry id overflowed u64")?;
+        let listened_date = row
+            .listened_date
+            .parse::<jiff::civil::Date>()
+            .with_context(|| {
+                format!(
+                    "failed to parse listened_date {:?} for rotation entry {id}",
+                    row.listened_date
+                )
+            })?;
+        Ok(RotationEntry {
             id,
-            listened_date: row.listened_date,
+            listened_date,
             artist: row.artist,
             album: row.album,
             cover: row.cover,
             year: row.year,
             note: row.note,
-        }
+        })
     }
 }
 
@@ -80,7 +91,7 @@ impl DatabaseBackend for SqliteRepository {
             "INSERT INTO rotation_entries (listened_date, artist, album, cover, year, note) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         )
-        .bind(entry.listened_date)
+        .bind(entry.listened_date.to_string())
         .bind(&entry.artist)
         .bind(&entry.album)
         .bind(&entry.cover)
@@ -113,7 +124,10 @@ impl DatabaseBackend for SqliteRepository {
         .await
         .context("failed to list rotation entries")?;
 
-        Ok(rows.into_iter().map(Into::into).collect())
+        rows.into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DatabaseError::Operation)
     }
 
     async fn random(&self) -> Result<RotationEntry, DatabaseError> {
@@ -126,7 +140,7 @@ impl DatabaseBackend for SqliteRepository {
         .context("failed to draw a random rotation entry")?
         .ok_or(DatabaseError::NotFound)?;
 
-        Ok(row.into())
+        row.try_into().map_err(DatabaseError::Operation)
     }
 
     async fn artist_stats(&self, limit: i64) -> Result<Vec<ArtistStat>, DatabaseError> {
@@ -162,7 +176,10 @@ impl DatabaseBackend for SqliteRepository {
         .await
         .context("failed to list incomplete rotation entries")?;
 
-        Ok(rows.into_iter().map(Into::into).collect())
+        rows.into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DatabaseError::Operation)
     }
 
     async fn update_metadata(

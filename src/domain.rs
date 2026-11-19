@@ -1,12 +1,12 @@
 // src/domain.rs
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::Serialize;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct RotationEntry {
     pub id: u64,
-    pub listened_date: NaiveDate,
+    pub listened_date: Date,
     pub artist: String,
     pub album: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -19,7 +19,7 @@ pub struct RotationEntry {
 
 #[derive(Clone, Debug)]
 pub struct NewRotationEntry {
-    pub listened_date: NaiveDate,
+    pub listened_date: Date,
     pub artist: String,
     pub album: String,
     pub cover: Option<String>,

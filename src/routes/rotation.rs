@@ -3,12 +3,12 @@
 use crate::database::{DatabaseBackend, DatabaseError};
 use crate::domain::{NewRotationEntry, RotationEntry};
 use crate::metadata::AlbumQuery;
+use crate::routes::sse::datastar_sse;
 use crate::utils::{compact_html, error_chain_fmt};
-use actix_sse::{Event, Sse};
 use actix_web::{HttpResponse, Responder, ResponseError, http::StatusCode, web};
-use chrono::Local;
 use datastar::actix_web::ReadSignals;
 use datastar::prelude::*;
+use jiff::ZonedDateTime;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tera::{Context, Tera};
@@ -96,7 +96,7 @@ pub async fn post_rotation_entry_ds(
     let metadata = looked_up.unwrap_or_default();
 
     let new_entry = NewRotationEntry {
-        listened_date: Local::now().date_naive(),
+        listened_date: ZonedDateTime::now().date(),
         artist: raw_rotation_entry.artist,
         album: raw_rotation_entry.album,
         cover: metadata.cover,
@@ -134,9 +134,7 @@ pub async fn post_rotation_entry_ds(
         events.push(status);
     }
 
-    Ok(Sse::from_infallible_stream(tokio_stream::iter(
-        events.into_iter().map(Event::from),
-    )))
+    Ok(datastar_sse(events))
 }
 
 pub async fn get_rotation_entry(
@@ -156,7 +154,5 @@ pub async fn get_rotation_entry(
         .into_datastar_event();
     let clear_placeholder = PatchElements::new_remove(PLACEHOLDER_ID).into_datastar_event();
 
-    Ok(Sse::from_infallible_stream(tokio_stream::iter(
-        [patch, clear_placeholder].map(Event::from),
-    )))
+    Ok(datastar_sse([patch, clear_placeholder]))
 }

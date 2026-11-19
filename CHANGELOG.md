@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-18
+
+### Changed
+
+- Replaced `chrono` (now unmaintained) with `jiff` 1.0 (`jiff::civil::Date` and
+  `jiff::ZonedDateTime`), and dropped the `chrono` feature from SQLx.
+- Updated `actix-sse` to 0.3 and refreshed dependencies (including `datastar-rust`).
+- Extracted the shared `datastar_sse` helper into `src/routes/sse.rs` to centralize
+  Actix SSE stream construction across route handlers.
+
 ## [0.9.0] - 2026-11-16
 
 ### Added
@@ -367,7 +377,8 @@ Initial scaffold, renamed from the `axum-tera-datastar` starter.
   tracing, and graceful shutdown.
 - `GET /health_check` and a starter to-do demo.
 
-[Unreleased]: https://github.com/crustyrustacean/musicfeed/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/crustyrustacean/musicfeed/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/crustyrustacean/musicfeed/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/crustyrustacean/musicfeed/compare/v0.6.1...v0.7.0

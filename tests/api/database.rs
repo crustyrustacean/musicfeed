@@ -13,7 +13,7 @@ use musicfeed::domain::NewRotationEntry;
 /// so each assertion shows exactly which field it is exercising.
 fn entry(artist: &str, album: &str) -> NewRotationEntry {
     NewRotationEntry {
-        listened_date: chrono::NaiveDate::from_ymd_opt(2026, 10, 7).expect("valid date"),
+        listened_date: jiff::civil::date(2026, 10, 7),
         artist: artist.to_string(),
         album: album.to_string(),
         cover: None,
@@ -63,7 +63,7 @@ async fn insert_round_trips_optional_fields() {
 
     let full = repo
         .insert(NewRotationEntry {
-            listened_date: chrono::NaiveDate::from_ymd_opt(2026, 10, 7).expect("valid date"),
+            listened_date: jiff::civil::date(2026, 10, 7),
             artist: "Judas Priest".to_string(),
             album: "Invincible Shield".to_string(),
             cover: Some("https://coverart.example/shield.jpg".to_string()),

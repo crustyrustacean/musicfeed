@@ -2,8 +2,8 @@
 
 use crate::database::{DatabaseBackend, DatabaseError};
 use crate::domain::ArtistStat;
+use crate::routes::sse::datastar_sse;
 use crate::utils::{compact_html, error_chain_fmt};
-use actix_sse::{Event, Sse};
 use actix_web::{HttpResponse, Responder, ResponseError, web};
 use datastar::prelude::*;
 use std::sync::Arc;
@@ -64,7 +64,5 @@ pub async fn get_artist_stats(
         .into_datastar_event();
     let clear_placeholder = PatchElements::new_remove(PLACEHOLDER_ID).into_datastar_event();
 
-    Ok(Sse::from_infallible_stream(tokio_stream::iter(
-        [patch, clear_placeholder].map(Event::from),
-    )))
+    Ok(datastar_sse([patch, clear_placeholder]))
 }

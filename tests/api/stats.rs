@@ -18,7 +18,7 @@ async fn store() -> (tempfile::TempDir, SqliteRepository) {
 
 fn entry(artist: &str, album: &str) -> NewRotationEntry {
     NewRotationEntry {
-        listened_date: chrono::NaiveDate::from_ymd_opt(2026, 11, 1).expect("valid date"),
+        listened_date: jiff::civil::date(2026, 11, 1),
         artist: artist.to_string(),
         album: album.to_string(),
         cover: None,
